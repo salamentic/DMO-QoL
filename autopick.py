@@ -31,25 +31,30 @@ import tkinter as tk
 # Global levellers:
 level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
 farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
-fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4 	), (ord('4'), 4), (0x09,1),]
-
+fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
+auto_pick = [(ord('4'),4), (None, 4)]
+ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
 values_map = [[(None,1)], farm_seq_bg, level_seq_bg]
-values = ["Pause", "Farm", "Level"]
+values = ["Pause", "Farm", "Level", "Auto Pickup"]
 
 # Define window using TKInter. Should show a radio button panel.
 root = tk.Tk()
-vcmd = root.register(lambda x: str.isdigit(x) and int(x) < 12)
+vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
 root.title('I am PogChamp')
 var = tk.StringVar(root, "1")
 delay = tk.StringVar(root, "1", )
-
+root.lift()
+root.wm_attributes("-topmost", True)
+root.geometry("+5+5")
+root.attributes('-alpha', 0.5)
+root.overrideredirect(True)
 
 for ind, x in enumerate(values):
 	tk.Radiobutton(root, text=x, variable=var,
 				value=ind, indicator=0, background = "sky blue",
 				).pack(fill='x', ipady=5)
-
-tk.Entry(root, textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(fill='x', ipady=10)
+exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
+tk.Entry(root, textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
 
 # Take and return screenshot of your window id.
 def take_ss(window_id):
@@ -137,7 +142,7 @@ def exec_sequence_bg(seq, window_id):
 	while(True):
 		# Pause if pause clicked
 		if int(var.get()) == 0:
-			pass
+			continue
 		else:
 			seq = values_map[int(var.get())]
 			if og_val != int(var.get()):
@@ -171,10 +176,10 @@ def exec_sequence_bg(seq, window_id):
 					win32api.PostMessage(window_id, win32con.WM_KEYDOWN, ord('4'), 0)
 					win32api.PostMessage(window_id, win32con.WM_KEYUP,  ord('4'), 0)
 			else:
-				for i in range(int(delay.get())):
+				for i in range(int(delay.get() or 0)):
 					# Break out if u change during a delay
 					if og_val != int(var.get()):
-						og_seq = seq
+						og_val = int(var.get())
 						break
 					pyautogui.sleep(1)
 		eat+=1
@@ -183,6 +188,19 @@ def exec_sequence_bg(seq, window_id):
 def winEnumHandler( hwnd, ctx ):
     if win32gui.IsWindowVisible( hwnd ):
         print (hex(hwnd), win32gui.GetWindowText( hwnd ))
+
+def show_window(hwnd, on):
+	# Show overlay if tabbed in
+	if win32gui.GetForegroundWindow() == hwnd:
+		if not on:
+			root.deiconify()
+		on = True
+	else:
+		if on:
+			root.withdraw()
+		on = False
+	root.after(2, lambda: show_window(hwnd, on))
+	return
 # win32gui.EnumWindows( winEnumHandler, None )
 
 # Get window id for game.
@@ -194,5 +212,5 @@ sift_detector(window_id)
 t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
 t1.daemon = True  # background thread will exit if main thread exits
 t1.start()
-
+root.after(2, lambda : show_window(window_id, False))
 root.mainloop()
