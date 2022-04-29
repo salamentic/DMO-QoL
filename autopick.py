@@ -13,6 +13,8 @@ import cv2
 import tkinter as tk
 import sys
 
+from sequences import values_map, values
+
 # Take and return screenshot of your window id.
 def take_ss(window_id):
 	hwnd = window_id
@@ -82,14 +84,15 @@ def sift_detector(window_id):
 	for m,n in matches:
 		if m.distance < 0.7 * n.distance:
 			good_matches.append(m)
-
+	print(len(good_matches))
 	if len(good_matches) > 150:
-		print('beep')
 		duration = 3000  # milliseconds
 		freq = 560  # Hz
+		winsound.Beep(freq, 400)
+		win32gui.SetForegroundWindow(self.window_id)
 		winsound.Beep(freq, duration)
 		winsound.Beep(freq, duration)
-		sleep(10000)
+		sys.exit("DANGER DANGER DANGER AHHHHHH")
 	return
 
 def show_window(container, bot_hwnd, hwnd, on):
@@ -103,59 +106,16 @@ def show_window(container, bot_hwnd, hwnd, on):
 		if on:
 			container.withdraw()
 		on = False
-	root.after(2, lambda: show_window(container, bot_hwnd, hwnd, on))
+	root.after(100, lambda: show_window(container, bot_hwnd, hwnd, on))
 	return
 
-# Global levellers:
-level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
-farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
-fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
-auto_pick = [(ord('4'),4), (None, 4)]
-ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
 
-values_map = [[(None,1)], farm_seq_bg, level_seq_bg, auto_pick, ao_fight]
-values = ["Pause", "Farm", "Level", "Auto Pickup", "Fight"]
-
-# Define window using TKInter. Should show a radio button panel.
-root = tk.Tk()
-
-# Validation command for number only text fields
-vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
-
-root.title("QoL")
-# Var: StringVar = Variable storing the current radio button pressed
-# delay: StringVar = Variable storing the current delay entered
-var = tk.StringVar(root, "0")
-delay = tk.StringVar(root, "0")
-
-root.lift()
-
-# Make window persist across tabs
-root.wm_attributes("-topmost", True)
-
-# Make it look nice ig
-root.geometry("+5+5")
-root.attributes('-alpha', 0.5)
-
-# Remove title bar
-root.overrideredirect(True)
-
-# Create radio buttons for all commands
-for ind, x in enumerate(values):
-	tk.Radiobutton(root, text=x, variable=var,
-				   value=ind, indicator=0, background = "sky blue",
-				   ).pack(fill='x', ipady=5)
-
-# Exit button since one does not exist
-exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
-
-# Text input for delay, with validation for numbers less than 12 as input only.
-tk.Entry(root, text="delay", textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
-
-def exec_sequence_bg(seq, window_id):
+def exec_sequence_bg(window_id):
 	eat = 0
-	og_val = seq
-
+	seq = None
+	global var
+	global delay
+	og_val = None
 	# Wait for both var and delay to be defined.
 	# TODO: Check this works
 	while(not var or not delay):
@@ -164,10 +124,8 @@ def exec_sequence_bg(seq, window_id):
 	while(True):
 		# Pause if pause clicked
 		if not var or int(var.get()) == 0:
-			print(var.get())
 			continue
 		else:
-			print(var.get())
 			seq = values_map[int(var.get())]
 			if og_val != int(var.get()):
 				print(f"Sequence changed, new sequence: {seq}")
@@ -209,6 +167,52 @@ def exec_sequence_bg(seq, window_id):
 		eat+=1
 	pass
 
+# Global levellers:
+# level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
+# farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
+# fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
+# auto_pick = [(ord('4'),4), (None, 4)]
+# ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
+#
+# values_map = [[(None,1)], farm_seq_bg, level_seq_bg, auto_pick, ao_fight]
+# values = ["Pause", "Farm", "Level", "Auto Pickup", "Fight"]
+
+# Define window using TKInter. Should show a radio button panel.
+root = tk.Tk()
+
+# Validation command for number only text fields
+vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
+
+root.title("QoL")
+# Var: StringVar = Variable storing the current radio button pressed
+# delay: StringVar = Variable storing the current delay entered
+var = tk.StringVar(root, "0")
+delay = tk.StringVar(root, "0")
+
+root.lift()
+
+# Make window persist across tabs
+root.wm_attributes("-topmost", True)
+
+# Make it look nice ig
+root.geometry("+5+5")
+root.attributes('-alpha', 0.5)
+
+# Remove title bar
+root.overrideredirect(True)
+
+# Create radio buttons for all commands
+for ind, x in enumerate(values):
+	tk.Radiobutton(root, text=x, variable=var,
+				   value=ind, indicator=0, background = "sky blue", relief = 'groove'
+				   ).pack(fill='x', ipady=5)
+
+# Exit button since one does not exist
+exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
+
+# Text input for delay, with validation for numbers less than 12 as input only.
+tk.Entry(root, text="delay", textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
+
 # Get window id for game.
 window_id = win32gui.FindWindow(None, "Client Version 1.2.0(37842)")
 bot_id = win32gui.FindWindow(None, "QoL")
@@ -221,9 +225,9 @@ else:
 # Start thread for bot.
 sift_detector(window_id)
 
-t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
+t1 = threading.Thread(target=exec_sequence_bg, args=[window_id])
 t1.daemon = True  # background thread will exit if main thread exits
 t1.start()
 
-root.after(2, lambda : show_window(root, bot_id, window_id, False))
+root.after(100, lambda : show_window(root, bot_id, window_id, False))
 root.mainloop()
