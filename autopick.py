@@ -1,6 +1,5 @@
 import pyautogui
 from time import sleep
-import win32gui
 import win32con
 import win32api
 import win32ui
@@ -8,53 +7,11 @@ from ctypes import windll
 from PIL import Image
 import winsound
 import numpy as np
-
 import win32gui
 import threading
-
-pyautogui.FAILSAFE = True # Scroll to corner to end
-pyautogui.PAUSE = 0.3 # Delay between autogui presses
-'''
-Executes sequence of actions
-
-Input:
-seq (array[(str, int)]): Array of tuples representing (key to be pressed, number of times to press). 
-			 			 If key is None sleep for second item's time.
-
-Output:
-None
-'''
-
 import cv2
 import tkinter as tk
-
-# Global levellers:
-level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
-farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
-fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
-auto_pick = [(ord('4'),4), (None, 4)]
-ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
-values_map = [[(None,1)], farm_seq_bg, level_seq_bg]
-values = ["Pause", "Farm", "Level", "Auto Pickup"]
-
-# Define window using TKInter. Should show a radio button panel.
-root = tk.Tk()
-vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
-root.title('I am PogChamp')
-var = tk.StringVar(root, "1")
-delay = tk.StringVar(root, "1", )
-root.lift()
-root.wm_attributes("-topmost", True)
-root.geometry("+5+5")
-root.attributes('-alpha', 0.5)
-root.overrideredirect(True)
-
-for ind, x in enumerate(values):
-	tk.Radiobutton(root, text=x, variable=var,
-				value=ind, indicator=0, background = "sky blue",
-				).pack(fill='x', ipady=5)
-exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
-tk.Entry(root, textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
+import sys
 
 # Take and return screenshot of your window id.
 def take_ss(window_id):
@@ -125,7 +82,6 @@ def sift_detector(window_id):
 	for m,n in matches:
 		if m.distance < 0.7 * n.distance:
 			good_matches.append(m)
-	print(len(good_matches))
 
 	if len(good_matches) > 150:
 		print('beep')
@@ -136,12 +92,34 @@ def sift_detector(window_id):
 		sleep(10000)
 	return
 
+def show_window(container, hwnd, on):
+	# Show overlay if tabbed in
+	if win32gui.GetForegroundWindow() == hwnd:
+		if not on:
+			container.deiconify()
+		on = True
+	else:
+		if on:
+			container.withdraw()
+		on = False
+	root.after(2, lambda: show_window(container, hwnd, on))
+	return
+
 def exec_sequence_bg(seq, window_id):
 	eat = 0
 	og_val = seq
+	global var
+	global delay
+	var = None
+
+	# Wait for both var and delay to be defined.
+	# TODO: Check this works
+	while(not var or not delay):
+		continue
+
 	while(True):
 		# Pause if pause clicked
-		if int(var.get()) == 0:
+		if not var or int(var.get()) == 0:
 			continue
 		else:
 			seq = values_map[int(var.get())]
@@ -181,36 +159,71 @@ def exec_sequence_bg(seq, window_id):
 					if og_val != int(var.get()):
 						og_val = int(var.get())
 						break
-					pyautogui.sleep(1)
+					sleep(1)
 		eat+=1
 	pass
 
-def winEnumHandler( hwnd, ctx ):
-    if win32gui.IsWindowVisible( hwnd ):
-        print (hex(hwnd), win32gui.GetWindowText( hwnd ))
 
-def show_window(hwnd, on):
-	# Show overlay if tabbed in
-	if win32gui.GetForegroundWindow() == hwnd:
-		if not on:
-			root.deiconify()
-		on = True
+# Global levellers:
+level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
+farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
+fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
+auto_pick = [(ord('4'),4), (None, 4)]
+ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
+
+values_map = [[(None,1)], farm_seq_bg, level_seq_bg, ao_fight]
+values = ["Pause", "Farm", "Level", "Auto Pickup", "Fight"]
+
+# Define window using TKInter. Should show a radio button panel.
+root = tk.Tk()
+
+# Validation command for number only text fields
+vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
+
+# Var: StringVar = Variable storing the current radio button pressed
+# delay: StringVar = Variable storing the current delay entered
+var = tk.StringVar(root, "1")
+delay = tk.StringVar(root, "1", )
+
+root.lift()
+
+# Make window persist across tabs
+root.wm_attributes("-topmost", True)
+
+# Make it look nice ig
+root.geometry("+5+5")
+root.attributes('-alpha', 0.5)
+
+# Remove title bar
+root.overrideredirect(True)
+
+# Create radio buttons for all commands
+for ind, x in enumerate(values):
+	tk.Radiobutton(root, text=x, variable=var,
+				   value=ind, indicator=0, background = "sky blue",
+				   ).pack(fill='x', ipady=5)
+
+# Exit button since one does not exist
+exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
+
+# Text input for delay, with validation for numbers less than 12 as input only.
+tk.Entry(root, text="delay", textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
+
+if __name__ == "__main__":
+	# Get window id for game.
+	window_id = win32gui.FindWindow(None, "Client Version 1.2.0(37842)")
+
+	if not window_id:
+		sys.exit("Window not found.")
 	else:
-		if on:
-			root.withdraw()
-		on = False
-	root.after(2, lambda: show_window(hwnd, on))
-	return
-# win32gui.EnumWindows( winEnumHandler, None )
+		print(f"Window found at {window_id}, starting program.")
 
-# Get window id for game.
-window_id = win32gui.FindWindow(None, "Client Version 1.2.0(37842)")
-print(window_id)
+	# Start thread for bot.
+	sift_detector(window_id)
 
-# Start thread for bot.
-sift_detector(window_id)
-t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
-t1.daemon = True  # background thread will exit if main thread exits
-t1.start()
-root.after(2, lambda : show_window(window_id, False))
-root.mainloop()
+	t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
+	t1.daemon = True  # background thread will exit if main thread exits
+	t1.start()
+
+	root.after(50, lambda : show_window(container, window_id, False))
+	root.mainloop()
