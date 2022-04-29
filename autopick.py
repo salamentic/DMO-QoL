@@ -92,9 +92,10 @@ def sift_detector(window_id):
 		sleep(10000)
 	return
 
-def show_window(container, hwnd, on):
+def show_window(container, bot_hwnd, hwnd, on):
 	# Show overlay if tabbed in
-	if win32gui.GetForegroundWindow() == hwnd:
+	curr = win32gui.GetForegroundWindow()
+	if curr == hwnd or curr == bot_hwnd:
 		if not on:
 			container.deiconify()
 		on = True
@@ -102,15 +103,58 @@ def show_window(container, hwnd, on):
 		if on:
 			container.withdraw()
 		on = False
-	root.after(2, lambda: show_window(container, hwnd, on))
+	root.after(2, lambda: show_window(container, bot_hwnd, hwnd, on))
 	return
+
+# Global levellers:
+level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
+farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
+fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
+auto_pick = [(ord('4'),4), (None, 4)]
+ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
+
+values_map = [[(None,1)], farm_seq_bg, level_seq_bg, auto_pick, ao_fight]
+values = ["Pause", "Farm", "Level", "Auto Pickup", "Fight"]
+
+# Define window using TKInter. Should show a radio button panel.
+root = tk.Tk()
+
+# Validation command for number only text fields
+vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
+
+root.title("QoL")
+# Var: StringVar = Variable storing the current radio button pressed
+# delay: StringVar = Variable storing the current delay entered
+var = tk.StringVar(root, "0")
+delay = tk.StringVar(root, "0")
+
+root.lift()
+
+# Make window persist across tabs
+root.wm_attributes("-topmost", True)
+
+# Make it look nice ig
+root.geometry("+5+5")
+root.attributes('-alpha', 0.5)
+
+# Remove title bar
+root.overrideredirect(True)
+
+# Create radio buttons for all commands
+for ind, x in enumerate(values):
+	tk.Radiobutton(root, text=x, variable=var,
+				   value=ind, indicator=0, background = "sky blue",
+				   ).pack(fill='x', ipady=5)
+
+# Exit button since one does not exist
+exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
+
+# Text input for delay, with validation for numbers less than 12 as input only.
+tk.Entry(root, text="delay", textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
 
 def exec_sequence_bg(seq, window_id):
 	eat = 0
 	og_val = seq
-	global var
-	global delay
-	var = None
 
 	# Wait for both var and delay to be defined.
 	# TODO: Check this works
@@ -120,8 +164,10 @@ def exec_sequence_bg(seq, window_id):
 	while(True):
 		# Pause if pause clicked
 		if not var or int(var.get()) == 0:
+			print(var.get())
 			continue
 		else:
+			print(var.get())
 			seq = values_map[int(var.get())]
 			if og_val != int(var.get()):
 				print(f"Sequence changed, new sequence: {seq}")
@@ -163,67 +209,21 @@ def exec_sequence_bg(seq, window_id):
 		eat+=1
 	pass
 
+# Get window id for game.
+window_id = win32gui.FindWindow(None, "Client Version 1.2.0(37842)")
+bot_id = win32gui.FindWindow(None, "QoL")
 
-# Global levellers:
-level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,5), (ord('4'), 4), (0x09,1),]
-farm_seq_bg = [(ord('4'), 6), (0x09,1), (ord('1'),1), (ord('5'),1),(None,1)]
-fast_level_seq_bg = [ (0x70,1), (ord('1'),1),(ord('5'),1),(None,4), (ord('4'), 4), (0x09,1),]
-auto_pick = [(ord('4'),4), (None, 4)]
-ao_fight = [(0x71,2), (ord('1'),3), (0x72,2), (ord('1'),5), (None, 1)]
+if not window_id:
+	sys.exit("Window not found.")
+else:
+	print(f"Window found at {window_id}, starting program.")
 
-values_map = [[(None,1)], farm_seq_bg, level_seq_bg, ao_fight]
-values = ["Pause", "Farm", "Level", "Auto Pickup", "Fight"]
+# Start thread for bot.
+sift_detector(window_id)
 
-# Define window using TKInter. Should show a radio button panel.
-root = tk.Tk()
+t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
+t1.daemon = True  # background thread will exit if main thread exits
+t1.start()
 
-# Validation command for number only text fields
-vcmd = root.register(lambda x: (x == "") or (str.isdigit(x) and int(x) < 12))
-
-# Var: StringVar = Variable storing the current radio button pressed
-# delay: StringVar = Variable storing the current delay entered
-var = tk.StringVar(root, "1")
-delay = tk.StringVar(root, "1", )
-
-root.lift()
-
-# Make window persist across tabs
-root.wm_attributes("-topmost", True)
-
-# Make it look nice ig
-root.geometry("+5+5")
-root.attributes('-alpha', 0.5)
-
-# Remove title bar
-root.overrideredirect(True)
-
-# Create radio buttons for all commands
-for ind, x in enumerate(values):
-	tk.Radiobutton(root, text=x, variable=var,
-				   value=ind, indicator=0, background = "sky blue",
-				   ).pack(fill='x', ipady=5)
-
-# Exit button since one does not exist
-exit_button = tk.Button(root, text="Exit", background = 'red', command=root.destroy).pack(fill='x', ipady=5)
-
-# Text input for delay, with validation for numbers less than 12 as input only.
-tk.Entry(root, text="delay", textvariable=delay, validate='all', validatecommand=(vcmd, "%P")).pack(ipady=10)
-
-if __name__ == "__main__":
-	# Get window id for game.
-	window_id = win32gui.FindWindow(None, "Client Version 1.2.0(37842)")
-
-	if not window_id:
-		sys.exit("Window not found.")
-	else:
-		print(f"Window found at {window_id}, starting program.")
-
-	# Start thread for bot.
-	sift_detector(window_id)
-
-	t1 = threading.Thread(target=exec_sequence_bg, args=[farm_seq_bg, window_id])
-	t1.daemon = True  # background thread will exit if main thread exits
-	t1.start()
-
-	root.after(50, lambda : show_window(container, window_id, False))
-	root.mainloop()
+root.after(2, lambda : show_window(root, bot_id, window_id, False))
+root.mainloop()
